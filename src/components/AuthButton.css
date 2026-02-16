@@ -1,0 +1,31 @@
+.auth-area {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.auth-user {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auth-btn {
+  font-size: 0.8rem;
+  padding: 4px 12px;
+  white-space: nowrap;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.auth-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}

@@ -3,10 +3,16 @@
   margin-bottom: 24px;
 }
 
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
 .header-title {
   font-size: 1.5rem;
   font-weight: 700;
-  margin-bottom: 12px;
 }
 
 .header-tabs {

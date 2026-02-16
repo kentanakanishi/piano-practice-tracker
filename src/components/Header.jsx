@@ -1,9 +1,13 @@
+import AuthButton from './AuthButton';
 import './Header.css';
 
 export default function Header({ view, onViewChange }) {
   return (
     <header className="header">
-      <h1 className="header-title">ピアノ練習トラッカー</h1>
+      <div className="header-top">
+        <h1 className="header-title">ピアノ練習トラッカー</h1>
+        <AuthButton />
+      </div>
       <div className="header-tabs">
         <button
           className={`tab ${view === 'monthly' ? 'tab--active' : ''}`}
