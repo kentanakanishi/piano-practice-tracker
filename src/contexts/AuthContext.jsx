@@ -29,12 +29,12 @@ export function AuthProvider({ children }) {
         redirectTo: window.location.origin + import.meta.env.BASE_URL,
       },
     });
-    if (error) console.error('Login error:', error.message);
+    if (error && import.meta.env.DEV) console.error('Login error:', error.message);
   };
 
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
-    if (error) console.error('Logout error:', error.message);
+    if (error && import.meta.env.DEV) console.error('Logout error:', error.message);
   };
 
   return (

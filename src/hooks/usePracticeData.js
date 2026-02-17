@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 
 const STORAGE_KEY = 'piano-practice-data';
 const MIGRATION_DONE_KEY = 'piano-practice-migrated';
+const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 // --- localStorage helpers ---
 
@@ -29,7 +30,7 @@ async function fetchSupabaseData(userId) {
     .eq('user_id', userId);
 
   if (error) {
-    console.error('Failed to fetch practice data:', error.message);
+    if (import.meta.env.DEV) console.error('Failed to fetch practice data:', error.message);
     return {};
   }
 
@@ -48,7 +49,7 @@ async function upsertSupabaseEntry(userId, dateStr, minutes) {
       { onConflict: 'user_id,practice_date' }
     );
 
-  if (error) console.error('Failed to save entry:', error.message);
+  if (error && import.meta.env.DEV) console.error('Failed to save entry:', error.message);
 }
 
 async function deleteSupabaseEntry(userId, dateStr) {
@@ -58,7 +59,7 @@ async function deleteSupabaseEntry(userId, dateStr) {
     .eq('user_id', userId)
     .eq('practice_date', dateStr);
 
-  if (error) console.error('Failed to delete entry:', error.message);
+  if (error && import.meta.env.DEV) console.error('Failed to delete entry:', error.message);
 }
 
 async function migrateLocalDataToSupabase(userId) {
@@ -77,7 +78,7 @@ async function migrateLocalDataToSupabase(userId) {
     .upsert(rows, { onConflict: 'user_id,practice_date' });
 
   if (error) {
-    console.error('Migration failed:', error.message);
+    if (import.meta.env.DEV) console.error('Migration failed:', error.message);
     return;
   }
 
@@ -125,6 +126,7 @@ export function usePracticeData() {
   }, [user, authLoading]);
 
   const addEntry = useCallback((dateStr, minutes) => {
+    if (!DATE_REGEX.test(dateStr)) return;
     setData((prev) => {
       const next = { ...prev, [dateStr]: minutes };
 
@@ -139,6 +141,7 @@ export function usePracticeData() {
   }, []);
 
   const removeEntry = useCallback((dateStr) => {
+    if (!DATE_REGEX.test(dateStr)) return;
     setData((prev) => {
       const next = { ...prev };
       delete next[dateStr];
