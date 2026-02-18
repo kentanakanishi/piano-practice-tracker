@@ -16,6 +16,18 @@
   --danger: #f85149;
 }
 
+/* 学習モード: 紫系テーマ */
+[data-mode="study"] {
+  --accent: #c084fc;
+  --accent-hover: #d8b4fe;
+
+  --heat-0: #161b22;
+  --heat-1: #2e1065;
+  --heat-2: #6b21a8;
+  --heat-3: #9333ea;
+  --heat-4: #c084fc;
+}
+
 .app {
   max-width: 900px;
   margin: 0 auto;

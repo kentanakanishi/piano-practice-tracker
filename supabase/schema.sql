@@ -5,13 +5,17 @@ create table practice_entries (
   practice_date date not null,
   minutes smallint not null check (minutes >= 1 and minutes <= 480),
   comment text not null default '',
+  tracker_type text not null default 'piano' check (tracker_type in ('piano', 'study')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (user_id, practice_date)
+  unique (user_id, practice_date, tracker_type)
 );
 
 -- 既存テーブルへのマイグレーション用（テーブルが作成済みの場合に実行）
 -- alter table practice_entries add column if not exists comment text not null default '';
+-- alter table practice_entries add column if not exists tracker_type text not null default 'piano' check (tracker_type in ('piano', 'study'));
+-- alter table practice_entries drop constraint if exists practice_entries_user_id_practice_date_key;
+-- alter table practice_entries add constraint practice_entries_user_id_practice_date_tracker_type_key unique (user_id, practice_date, tracker_type);
 
 -- ユーザーIDでの検索用インデックス
 create index idx_practice_entries_user_id on practice_entries(user_id);
