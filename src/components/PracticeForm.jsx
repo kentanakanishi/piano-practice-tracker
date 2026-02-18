@@ -5,11 +5,14 @@ import './PracticeForm.css';
 export default function PracticeForm({ data, selectedDate, onAdd, onRemove }) {
   const [date, setDate] = useState(selectedDate || todayString());
   const [minutes, setMinutes] = useState('');
+  const [comment, setComment] = useState('');
 
   useEffect(() => {
     if (selectedDate) {
+      const entry = data[selectedDate];
       setDate(selectedDate);
-      setMinutes(data[selectedDate] ? String(data[selectedDate]) : '');
+      setMinutes(entry ? String(entry.minutes) : '');
+      setComment(entry?.comment || '');
     }
   }, [selectedDate, data]);
 
@@ -17,14 +20,16 @@ export default function PracticeForm({ data, selectedDate, onAdd, onRemove }) {
     e.preventDefault();
     const min = parseInt(minutes, 10);
     if (!date || isNaN(min) || min < 1 || min > 480) return;
-    onAdd(date, min);
+    onAdd(date, min, comment.trim());
     setMinutes('');
+    setComment('');
   }
 
   function handleDelete() {
     if (date && data[date]) {
       onRemove(date);
       setMinutes('');
+      setComment('');
     }
   }
 
@@ -61,6 +66,17 @@ export default function PracticeForm({ data, selectedDate, onAdd, onRemove }) {
           </button>
         )}
       </div>
+      <label className="form-field form-field--full">
+        <span className="form-label">コメント（任意）</span>
+        <textarea
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="今日の練習メモ..."
+          maxLength={200}
+          rows={2}
+          className="form-input form-textarea"
+        />
+      </label>
     </form>
   );
 }

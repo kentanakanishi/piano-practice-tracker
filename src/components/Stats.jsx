@@ -3,7 +3,7 @@ import './Stats.css';
 export default function Stats({ data }) {
   const entries = Object.entries(data);
   const totalDays = entries.length;
-  const totalMinutes = entries.reduce((sum, [, min]) => sum + min, 0);
+  const totalMinutes = entries.reduce((sum, [, entry]) => sum + entry.minutes, 0);
   const hours = Math.floor(totalMinutes / 60);
   const mins = totalMinutes % 60;
 

@@ -52,7 +52,8 @@ export default function MonthlyCalendar({ data, onDateSelect }) {
             return <div key={`empty-${i}`} className="calendar-cell calendar-cell--empty" />;
           }
           const dateStr = formatDate(year, month, day);
-          const minutes = data[dateStr] || 0;
+          const entry = data[dateStr];
+          const minutes = entry?.minutes || 0;
           const bg = getCalendarCellColor(minutes);
           return (
             <div
@@ -64,6 +65,9 @@ export default function MonthlyCalendar({ data, onDateSelect }) {
               <span className="calendar-day">{day}</span>
               {minutes > 0 && (
                 <span className="calendar-minutes">{minutes}分</span>
+              )}
+              {entry?.comment && (
+                <span className="calendar-comment-dot" title={entry.comment} />
               )}
             </div>
           );
