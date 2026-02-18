@@ -11,7 +11,18 @@ const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 function loadLocalData() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    // 旧形式 { date: number } を新形式 { date: { minutes, comment } } に変換
+    const result = {};
+    for (const [date, val] of Object.entries(parsed)) {
+      if (typeof val === 'number') {
+        result[date] = { minutes: val, comment: '' };
+      } else {
+        result[date] = val;
+      }
+    }
+    return result;
   } catch {
     return {};
   }
@@ -26,7 +37,7 @@ function saveLocalData(data) {
 async function fetchSupabaseData(userId) {
   const { data, error } = await supabase
     .from('practice_entries')
-    .select('practice_date, minutes')
+    .select('practice_date, minutes, comment')
     .eq('user_id', userId);
 
   if (error) {
@@ -36,16 +47,16 @@ async function fetchSupabaseData(userId) {
 
   const result = {};
   for (const row of data) {
-    result[row.practice_date] = row.minutes;
+    result[row.practice_date] = { minutes: row.minutes, comment: row.comment || '' };
   }
   return result;
 }
 
-async function upsertSupabaseEntry(userId, dateStr, minutes) {
+async function upsertSupabaseEntry(userId, dateStr, minutes, comment) {
   const { error } = await supabase
     .from('practice_entries')
     .upsert(
-      { user_id: userId, practice_date: dateStr, minutes },
+      { user_id: userId, practice_date: dateStr, minutes, comment: comment || '' },
       { onConflict: 'user_id,practice_date' }
     );
 
@@ -67,10 +78,11 @@ async function migrateLocalDataToSupabase(userId) {
   const entries = Object.entries(localData);
   if (entries.length === 0) return;
 
-  const rows = entries.map(([dateStr, minutes]) => ({
+  const rows = entries.map(([dateStr, entry]) => ({
     user_id: userId,
     practice_date: dateStr,
-    minutes,
+    minutes: entry.minutes,
+    comment: entry.comment || '',
   }));
 
   const { error } = await supabase
@@ -125,13 +137,13 @@ export function usePracticeData() {
     return () => { cancelled = true; };
   }, [user, authLoading]);
 
-  const addEntry = useCallback((dateStr, minutes) => {
+  const addEntry = useCallback((dateStr, minutes, comment = '') => {
     if (!DATE_REGEX.test(dateStr)) return;
     setData((prev) => {
-      const next = { ...prev, [dateStr]: minutes };
+      const next = { ...prev, [dateStr]: { minutes, comment } };
 
       if (userIdRef.current) {
-        upsertSupabaseEntry(userIdRef.current, dateStr, minutes);
+        upsertSupabaseEntry(userIdRef.current, dateStr, minutes, comment);
       } else {
         saveLocalData(next);
       }

@@ -66,14 +66,16 @@ export default function YearlyHeatmap({ data }) {
                     if (!dateStr) {
                       return <div key={`${wi}-${di}`} className="heatmap-cell heatmap-cell--empty" />;
                     }
-                    const minutes = data[dateStr] || 0;
+                    const entry = data[dateStr];
+                    const minutes = entry?.minutes || 0;
                     const color = getHeatmapColor(minutes);
+                    const commentSuffix = entry?.comment ? ` — ${entry.comment}` : '';
                     return (
                       <div
                         key={dateStr}
                         className="heatmap-cell"
                         style={{ backgroundColor: color }}
-                        title={`${dateStr}: ${minutes > 0 ? `${minutes}分` : '練習なし'}`}
+                        title={`${dateStr}: ${minutes > 0 ? `${minutes}分` : '練習なし'}${commentSuffix}`}
                       />
                     );
                   })}

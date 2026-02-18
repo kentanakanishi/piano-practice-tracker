@@ -4,10 +4,14 @@ create table practice_entries (
   user_id uuid not null references auth.users(id) on delete cascade,
   practice_date date not null,
   minutes smallint not null check (minutes >= 1 and minutes <= 480),
+  comment text not null default '',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (user_id, practice_date)
 );
+
+-- 既存テーブルへのマイグレーション用（テーブルが作成済みの場合に実行）
+-- alter table practice_entries add column if not exists comment text not null default '';
 
 -- ユーザーIDでの検索用インデックス
 create index idx_practice_entries_user_id on practice_entries(user_id);
