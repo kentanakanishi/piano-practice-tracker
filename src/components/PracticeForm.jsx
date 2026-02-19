@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { todayString } from '../utils/date';
 import './PracticeForm.css';
 
-export default function PracticeForm({ data, selectedDate, onAdd, onRemove }) {
+export default function PracticeForm({ data, selectedDate, onAdd, onRemove, mode }) {
+  const isPiano = mode !== 'study';
   const [date, setDate] = useState(selectedDate || todayString());
   const [minutes, setMinutes] = useState('');
   const [comment, setComment] = useState('');
@@ -46,7 +47,7 @@ export default function PracticeForm({ data, selectedDate, onAdd, onRemove }) {
           />
         </label>
         <label className="form-field">
-          <span className="form-label">練習時間（分）</span>
+          <span className="form-label">{isPiano ? '練習時間（分）' : '学習時間（分）'}</span>
           <input
             type="number"
             min="1"
@@ -71,7 +72,7 @@ export default function PracticeForm({ data, selectedDate, onAdd, onRemove }) {
         <textarea
           value={comment}
           onChange={(e) => setComment(e.target.value)}
-          placeholder="今日の練習メモ..."
+          placeholder={isPiano ? '今日の練習メモ...' : '今日の学習メモ...'}
           maxLength={200}
           rows={2}
           className="form-input form-textarea"

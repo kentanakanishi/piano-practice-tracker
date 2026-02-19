@@ -1,20 +1,24 @@
-# ピアノ練習トラッカー
+# 練習・学習トラッカー
 
-ピアノの練習実績を可視化するWebアプリ。練習した分数を日付ごとに登録し、月間カレンダーとGitHub風ヒートマップで振り返ることができます。
+ピアノ練習または学習の実績を可視化するWebアプリ。記録した分数を日付ごとに登録し、月間カレンダーとGitHub風ヒートマップで振り返ることができます。
 
 ## 機能
 
-- **月間カレンダー** - 日ごとの練習時間を一覧表示。日付クリックで入力フォームに反映
-- **年間ヒートマップ** - GitHub風の53週×7日グリッドで練習量を色の濃淡で表示
-- **練習記録の登録・削除** - 日付と練習時間（分）を入力して保存
-- **統計表示** - 練習日数・合計時間・平均練習時間
-- **データ永続化** - ブラウザのlocalStorageに保存（バックエンド不要）
+- **2モード切り替え** - ヘッダーのトグルでピアノ練習モードと学習履歴モードを切り替え。データはモードごとに独立して管理
+- **モード別カラーテーマ** - ピアノ練習はグリーン系、学習履歴はパープル系に自動切り替え
+- **月間カレンダー** - 日ごとの記録時間を一覧表示。日付クリックで入力フォームに反映
+- **年間ヒートマップ** - GitHub風の53週×7日グリッドで記録量を色の濃淡で表示
+- **記録の登録・削除** - 日付と時間（分）を入力して保存
+- **統計表示** - 記録日数・合計時間・平均時間
+- **ブラウザ通知** - 当日の記録がない場合、指定した時刻にブラウザ通知（タブが開いている場合のみ）
+- **データ永続化** - localStorage（オフライン）+ Supabase（ログイン時にクラウド同期）
 
 ## 技術スタック
 
 - React 19 + Vite
 - Plain CSS（外部UIライブラリなし）
-- localStorage によるデータ管理
+- localStorage / Supabase によるデータ管理
+- Web Notifications API
 
 ## セットアップ
 
@@ -35,23 +39,47 @@ npm run build
 
 ```
 src/
-├── App.jsx                    # 状態管理・コンポーネント統合
-├── App.css                    # CSS変数・テーマ定義
-├── index.css                  # リセットCSS
+├── App.jsx                           # 状態管理・コンポーネント統合
+├── App.css                           # CSS変数・テーマ定義（モード別）
+├── index.css                         # リセットCSS
 ├── hooks/
-│   └── usePracticeData.js     # localStorage読み書きフック
+│   ├── usePracticeData.js            # データ読み書きフック（モード対応）
+│   └── useNotification.js            # ブラウザ通知フック
 ├── utils/
-│   ├── date.js                # 日付ヘルパー関数
-│   └── color.js               # ヒートマップ色スケール
+│   ├── date.js                       # 日付ヘルパー関数
+│   └── color.js                      # ヒートマップ色スケール
 └── components/
-    ├── Header.jsx             # タイトル + ビュー切替タブ
-    ├── PracticeForm.jsx       # 日付・分数入力フォーム
-    ├── MonthlyCalendar.jsx    # 月間カレンダーグリッド
-    ├── MonthNavigator.jsx     # 月ナビゲーション
-    ├── YearlyHeatmap.jsx      # 年間ヒートマップ
-    ├── YearNavigator.jsx      # 年ナビゲーション
-    └── Stats.jsx              # 練習統計
+    ├── Header.jsx                    # タイトル + モード切替 + ビュー切替タブ
+    ├── PracticeForm.jsx              # 日付・分数入力フォーム
+    ├── MonthlyCalendar.jsx           # 月間カレンダーグリッド
+    ├── MonthNavigator.jsx            # 月ナビゲーション
+    ├── YearlyHeatmap.jsx             # 年間ヒートマップ
+    ├── YearNavigator.jsx             # 年ナビゲーション
+    ├── Stats.jsx                     # 統計
+    ├── NotificationSettings.jsx      # 通知設定モーダル
+    └── AuthButton.jsx                # Google ログイン/ログアウト
 ```
+
+## モード切り替えについて
+
+ヘッダーの「ピアノ練習 / 学習履歴」トグルでモードを切り替えられます。
+
+- **ピアノ練習モード**: グリーン系テーマ。localStorage キー `practice-data-piano`
+- **学習履歴モード**: パープル系テーマ。localStorage キー `practice-data-study`
+
+モードはページリロード後も保持されます。データはモードごとに完全に独立しています。
+
+Supabase 利用時は `tracker_type` カラムでモードごとにデータを分離します。
+
+## 通知機能
+
+ヘッダー右上の「通知」ボタンから設定できます。
+
+1. 「通知を許可する」でブラウザの通知権限を付与
+2. トグルで通知を有効化し、通知時刻を設定
+3. 当日の記録がない場合、設定した時刻にブラウザ通知が届く
+
+> タブが開いている場合のみ動作します（Service Worker 未使用）。
 
 ## GitHub Pages へのデプロイ
 
@@ -143,16 +171,36 @@ push 後、GitHub Actions が自動実行され、数十秒でサイトが公開
 
 ### 注意事項
 
-- localStorage は端末・ブラウザごとに独立しているため、練習データは端末間で共有されません
+- localStorage は端末・ブラウザごとに独立しているため、データは端末間で共有されません（Supabase ログイン時を除く）
 
 ## データ形式
 
-localStorageの `piano-practice-data` キーにJSON形式で保存されます。
+### localStorage
+
+モードごとに別キーで保存されます。
+
+| キー | 内容 |
+|-----|------|
+| `practice-data-piano` | ピアノ練習の記録 |
+| `practice-data-study` | 学習履歴の記録 |
+| `tracker-mode` | 現在のモード (`piano` / `study`) |
+| `notification-settings` | 通知設定 |
 
 ```json
 {
-  "2026-02-01": 30,
-  "2026-02-03": 45,
-  "2026-02-10": 60
+  "2026-02-01": { "minutes": 30, "comment": "ソナタ練習" },
+  "2026-02-03": { "minutes": 45, "comment": "" }
 }
 ```
+
+### Supabase テーブル (`practice_entries`)
+
+| カラム | 型 | 説明 |
+|-------|-----|------|
+| `user_id` | UUID | ユーザーID |
+| `practice_date` | DATE | 記録日 |
+| `minutes` | SMALLINT | 記録時間（分） |
+| `comment` | TEXT | コメント |
+| `tracker_type` | TEXT | モード (`piano` / `study`) |
+
+UNIQUE 制約: `(user_id, practice_date, tracker_type)`

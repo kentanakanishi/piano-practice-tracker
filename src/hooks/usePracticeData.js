@@ -2,43 +2,66 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 
-const STORAGE_KEY = 'piano-practice-data';
-const MIGRATION_DONE_KEY = 'piano-practice-migrated';
+const LEGACY_STORAGE_KEY = 'piano-practice-data';
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+function storageKey(mode) {
+  return `practice-data-${mode}`;
+}
+
+function migrationDoneKey(mode) {
+  return `practice-migrated-${mode}`;
+}
 
 // --- localStorage helpers ---
 
-function loadLocalData() {
+function parsePracticeData(raw) {
+  const parsed = JSON.parse(raw);
+  const result = {};
+  for (const [date, val] of Object.entries(parsed)) {
+    if (typeof val === 'number') {
+      result[date] = { minutes: val, comment: '' };
+    } else {
+      result[date] = val;
+    }
+  }
+  return result;
+}
+
+function loadLocalData(mode) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    // 旧形式 { date: number } を新形式 { date: { minutes, comment } } に変換
-    const result = {};
-    for (const [date, val] of Object.entries(parsed)) {
-      if (typeof val === 'number') {
-        result[date] = { minutes: val, comment: '' };
-      } else {
-        result[date] = val;
+    const key = storageKey(mode);
+    const raw = localStorage.getItem(key);
+
+    // pianoモードのみ旧キーからの自動移行
+    if (!raw && mode === 'piano') {
+      const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
+      if (legacyRaw) {
+        const legacyData = parsePracticeData(legacyRaw);
+        localStorage.setItem(key, JSON.stringify(legacyData));
+        return legacyData;
       }
     }
-    return result;
+
+    if (!raw) return {};
+    return parsePracticeData(raw);
   } catch {
     return {};
   }
 }
 
-function saveLocalData(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+function saveLocalData(data, mode) {
+  localStorage.setItem(storageKey(mode), JSON.stringify(data));
 }
 
 // --- Supabase helpers ---
 
-async function fetchSupabaseData(userId) {
+async function fetchSupabaseData(userId, mode) {
   const { data, error } = await supabase
     .from('practice_entries')
     .select('practice_date, minutes, comment')
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .eq('tracker_type', mode);
 
   if (error) {
     if (import.meta.env.DEV) console.error('Failed to fetch practice data:', error.message);
@@ -52,29 +75,29 @@ async function fetchSupabaseData(userId) {
   return result;
 }
 
-async function upsertSupabaseEntry(userId, dateStr, minutes, comment) {
+async function upsertSupabaseEntry(userId, dateStr, minutes, comment, mode) {
   const { error } = await supabase
     .from('practice_entries')
     .upsert(
-      { user_id: userId, practice_date: dateStr, minutes, comment: comment || '' },
-      { onConflict: 'user_id,practice_date' }
+      { user_id: userId, practice_date: dateStr, minutes, comment: comment || '', tracker_type: mode },
+      { onConflict: 'user_id,practice_date,tracker_type' }
     );
 
   if (error && import.meta.env.DEV) console.error('Failed to save entry:', error.message);
 }
 
-async function deleteSupabaseEntry(userId, dateStr) {
+async function deleteSupabaseEntry(userId, dateStr, mode) {
   const { error } = await supabase
     .from('practice_entries')
     .delete()
     .eq('user_id', userId)
-    .eq('practice_date', dateStr);
+    .eq('practice_date', dateStr)
+    .eq('tracker_type', mode);
 
   if (error && import.meta.env.DEV) console.error('Failed to delete entry:', error.message);
 }
 
-async function migrateLocalDataToSupabase(userId) {
-  const localData = loadLocalData();
+async function migrateLocalDataToSupabase(userId, mode, localData) {
   const entries = Object.entries(localData);
   if (entries.length === 0) return;
 
@@ -83,25 +106,26 @@ async function migrateLocalDataToSupabase(userId) {
     practice_date: dateStr,
     minutes: entry.minutes,
     comment: entry.comment || '',
+    tracker_type: mode,
   }));
 
   const { error } = await supabase
     .from('practice_entries')
-    .upsert(rows, { onConflict: 'user_id,practice_date' });
+    .upsert(rows, { onConflict: 'user_id,practice_date,tracker_type' });
 
   if (error) {
     if (import.meta.env.DEV) console.error('Migration failed:', error.message);
     return;
   }
 
-  localStorage.setItem(MIGRATION_DONE_KEY, 'true');
+  localStorage.setItem(migrationDoneKey(mode), 'true');
 }
 
 // --- Hook ---
 
-export function usePracticeData() {
+export function usePracticeData(mode) {
   const { user, loading: authLoading } = useAuth();
-  const [data, setData] = useState(loadLocalData);
+  const [data, setData] = useState(() => loadLocalData(mode));
   const [loading, setLoading] = useState(false);
   const userIdRef = useRef(null);
 
@@ -110,7 +134,7 @@ export function usePracticeData() {
 
     if (!user) {
       userIdRef.current = null;
-      setData(loadLocalData());
+      setData(loadLocalData(mode));
       return;
     }
 
@@ -120,13 +144,13 @@ export function usePracticeData() {
     (async () => {
       setLoading(true);
 
-      const migrated = localStorage.getItem(MIGRATION_DONE_KEY);
-      const localData = loadLocalData();
+      const migrated = localStorage.getItem(migrationDoneKey(mode));
+      const localData = loadLocalData(mode);
       if (!migrated && Object.keys(localData).length > 0) {
-        await migrateLocalDataToSupabase(user.id);
+        await migrateLocalDataToSupabase(user.id, mode, localData);
       }
 
-      const supabaseData = await fetchSupabaseData(user.id);
+      const supabaseData = await fetchSupabaseData(user.id, mode);
 
       if (!cancelled) {
         setData(supabaseData);
@@ -135,7 +159,7 @@ export function usePracticeData() {
     })();
 
     return () => { cancelled = true; };
-  }, [user, authLoading]);
+  }, [user, authLoading, mode]);
 
   const addEntry = useCallback((dateStr, minutes, comment = '') => {
     if (!DATE_REGEX.test(dateStr)) return;
@@ -143,14 +167,14 @@ export function usePracticeData() {
       const next = { ...prev, [dateStr]: { minutes, comment } };
 
       if (userIdRef.current) {
-        upsertSupabaseEntry(userIdRef.current, dateStr, minutes, comment);
+        upsertSupabaseEntry(userIdRef.current, dateStr, minutes, comment, mode);
       } else {
-        saveLocalData(next);
+        saveLocalData(next, mode);
       }
 
       return next;
     });
-  }, []);
+  }, [mode]);
 
   const removeEntry = useCallback((dateStr) => {
     if (!DATE_REGEX.test(dateStr)) return;
@@ -159,14 +183,14 @@ export function usePracticeData() {
       delete next[dateStr];
 
       if (userIdRef.current) {
-        deleteSupabaseEntry(userIdRef.current, dateStr);
+        deleteSupabaseEntry(userIdRef.current, dateStr, mode);
       } else {
-        saveLocalData(next);
+        saveLocalData(next, mode);
       }
 
       return next;
     });
-  }, []);
+  }, [mode]);
 
   return { data, addEntry, removeEntry, loading };
 }
